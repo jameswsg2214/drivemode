@@ -23,6 +23,7 @@ import android.os.Build
 import androidx.core.content.ContentProviderCompat.requireContext
 import kotlinx.android.synthetic.main.activity_contact_list_view.*
 import androidx.core.app.ActivityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.wils.drivingmode.ui.contactList.MobileContactList
 
 
@@ -32,6 +33,9 @@ class ContactListViewActivity:AppCompatActivity() {
         ContactListViewModelFactory((application as ProApplication).contactListRepository)
     }
 
+    var contactAdapter :ContactListAdapter ?= null
+
+    var contactListData:ArrayList<MobileContactList> = ArrayList()
     val REQUEST_READ_CONTACTS:Int = 79
 
     var mobileArray:ArrayList<MobileContactList> = ArrayList()
@@ -42,9 +46,21 @@ class ContactListViewActivity:AppCompatActivity() {
 
         setContentView(R.layout.activity_contact_list_view)
         initView()
+        initRecyclerView()
         initClickListener()
 
 
+    }
+
+    private fun initRecyclerView() {
+
+        contactListRecycler.layoutManager = LinearLayoutManager(this)
+
+        contactAdapter = ContactListAdapter(contactListData)
+
+        contactListRecycler.adapter = contactAdapter
+
+        showContacts()
     }
 
     private fun initClickListener() {
@@ -63,9 +79,8 @@ class ContactListViewActivity:AppCompatActivity() {
     @InternalCoroutinesApi
     private fun initView() {
 
-
+/*
         var listD :ArrayList<ContactEntity> = ArrayList()
-
 
         listD.add(
             ContactEntity(
@@ -75,6 +90,7 @@ class ContactListViewActivity:AppCompatActivity() {
 
         )
         val result = viewModel.insertData(listD as List<ContactEntity>)
+*/
 
     }
 
@@ -104,6 +120,10 @@ class ContactListViewActivity:AppCompatActivity() {
             ContactsContract.Contacts.CONTENT_URI,
             null, null, null, null
         )
+
+        contactListData.clear()
+
+
         if ((cur?.count ?: 0) > 0) {
             while (cur != null && cur.moveToNext()) {
                 val id: String = cur.getString(
@@ -114,6 +134,8 @@ class ContactListViewActivity:AppCompatActivity() {
                         ContactsContract.Contacts.DISPLAY_NAME
                     )
                 )
+
+
                 if (cur.getInt(cur.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0) {
                     val pCur: Cursor? = cr.query(
                         ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -131,12 +153,21 @@ class ContactListViewActivity:AppCompatActivity() {
                             )
                             Log.i("Contact","Name: $name")
                             Log.i("Contact","Phone Number: $phoneNo")
+
+                            contactListData.add(
+                                MobileContactList(
+                                name= name,
+                                number = phoneNo
+                                )
+                            )
                         }
                         pCur.close()
                     }
 
                 }
             }
+
+            contactListRecycler?.adapter?.notifyDataSetChanged()
         }
         cur?.close()
     }

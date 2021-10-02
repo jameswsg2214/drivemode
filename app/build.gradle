@@ -64,6 +64,9 @@ dependencies {
     implementation "com.google.android.material:material:$rootProject.materialVersion"
 
 
+    // RecyclerView
+    implementation "androidx.recyclerview:recyclerview:$rootProject.recyclerViewVersion"
+
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
