@@ -2,43 +2,47 @@ package com.wils.drivingmode.ui.contactList.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.os.Bundle
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.wils.drivingmode.R
 import androidx.activity.viewModels
 import com.wils.drivingmode.application.ProApplication
-import com.wils.drivingmode.roomdb.ContactEntity
 import com.wils.drivingmode.ui.contactList.viewModel.ContactListViewModel
 import com.wils.drivingmode.ui.contactList.viewModel.ContactListViewModelFactory
 import kotlinx.coroutines.InternalCoroutinesApi
 
 import android.provider.ContactsContract
 
-import android.content.Intent
 import android.database.Cursor
 import android.content.ContentResolver
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContentProviderCompat.requireContext
+import android.view.View
 import kotlinx.android.synthetic.main.activity_contact_list_view.*
 import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.wils.drivingmode.utils.Utils
 import com.wils.drivingmode.ui.contactList.MobileContactList
+import com.wils.drivingmode.utils.ViewExtension
 
 
-class ContactListViewActivity:AppCompatActivity() {
+class ContactListViewActivity : AppCompatActivity() {
 
-    private val viewModel:ContactListViewModel by viewModels {
+    private val viewModel: ContactListViewModel by viewModels {
+
         ContactListViewModelFactory((application as ProApplication).contactListRepository)
+
     }
 
-    var contactAdapter :ContactListAdapter ?= null
+    var contactAdapter: ContactListAdapter? = null
 
-    var contactListData:ArrayList<MobileContactList> = ArrayList()
-    val REQUEST_READ_CONTACTS:Int = 79
+    var contactListData: ArrayList<MobileContactList> = ArrayList()
+    val REQUEST_READ_CONTACTS: Int = 79
 
-    var mobileArray:ArrayList<MobileContactList> = ArrayList()
+    var mobileArray: ArrayList<MobileContactList> = ArrayList()
+
+    var progressDialog: Dialog? = null
 
     @InternalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,9 +50,22 @@ class ContactListViewActivity:AppCompatActivity() {
 
         setContentView(R.layout.activity_contact_list_view)
         initView()
+        initObserver()
         initRecyclerView()
         initClickListener()
 
+
+    }
+
+    private fun initObserver() {
+        viewModel.progress.observe(this, {
+            if (it == View.VISIBLE)
+                progressDialog?.show()
+            else if (it == View.GONE)
+                progressDialog?.dismiss()
+        }
+
+        )
 
     }
 
@@ -60,24 +77,21 @@ class ContactListViewActivity:AppCompatActivity() {
 
         contactListRecycler.adapter = contactAdapter
 
-        showContacts()
+//        showContacts()
     }
 
     private fun initClickListener() {
         contactName?.setOnClickListener {
 
             showContacts()
-        }
-    }
 
-    private fun getContact() {
-        val intent = Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
-        startActivityForResult(intent, 1)
+        }
     }
 
 
     @InternalCoroutinesApi
     private fun initView() {
+        progressDialog = ViewExtension.progressDialog(this)
 
 /*
         var listD :ArrayList<ContactEntity> = ArrayList()
@@ -109,8 +123,18 @@ class ContactListViewActivity:AppCompatActivity() {
             //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
         } else {
             // Android version is lesser than 6.0 or the permission is already granted.
+            progress(true)
             getContactList()
+
         }
+    }
+
+    fun progress(status: Boolean) {
+        if (status)
+            progressDialog?.show()
+        else
+            progressDialog?.dismiss()
+
     }
 
     @SuppressLint("Range")
@@ -122,7 +146,6 @@ class ContactListViewActivity:AppCompatActivity() {
         )
 
         contactListData.clear()
-
 
         if ((cur?.count ?: 0) > 0) {
             while (cur != null && cur.moveToNext()) {
@@ -151,13 +174,13 @@ class ContactListViewActivity:AppCompatActivity() {
                                     ContactsContract.CommonDataKinds.Phone.NUMBER
                                 )
                             )
-                            Log.i("Contact","Name: $name")
-                            Log.i("Contact","Phone Number: $phoneNo")
-
+                /*            Log.i("Contact", "Name: $name")
+                            Log.i("Contact", "Phone Number: $phoneNo")
+*/
                             contactListData.add(
                                 MobileContactList(
-                                name= name,
-                                number = phoneNo
+                                    name = name,
+                                    number = phoneNo
                                 )
                             )
                         }
@@ -170,74 +193,10 @@ class ContactListViewActivity:AppCompatActivity() {
             contactListRecycler?.adapter?.notifyDataSetChanged()
         }
         cur?.close()
+
+//        viewModel.progress.value=8
+        progress(false)
     }
-/*
-
-    val contactResult= registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
-        if(it.resultCode== Activity.RESULT_OK){
-
-            val intent = it.data
-
-
-            val c: Cursor? = contentResolver.query(intent, null, null, null, null)
-            if (c.moveToFirst()) {
-                var phoneNumber = ""
-                var emailAddress = ""
-                val name: String =
-                    c.getString(c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
-                val contactId: String = c.getString(c.getColumnIndex(ContactsContract.Contacts._ID))
-                //http://stackoverflow.com/questions/866769/how-to-call-android-contacts-list   our upvoted answer
-                var hasPhone: String =
-                    c.getString(c.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER))
-                hasPhone = if (hasPhone.equals("1", ignoreCase = true)) "true" else "false"
-                if (Boolean.parseBoolean(hasPhone)) {
-                    val phones: Cursor? = contentResolver.query(
-                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                        null,
-                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + contactId,
-                        null,
-                        null
-                    )
-                    while (phones.moveToNext()) {
-                        phoneNumber =
-                            phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                    }
-                    phones.close()
-                }
-
-                // Find Email Addresses
-                val emails: Cursor? = contentResolver.query(
-                    ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                    null,
-                    ContactsContract.CommonDataKinds.Email.CONTACT_ID + " = " + contactId,
-                    null,
-                    null
-                )
-                while (emails.moveToNext()) {
-                    emailAddress =
-                        emails.getString(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.DATA))
-                }
-                emails.close()
-
-                //mainActivity.onBackPressed();
-                // Toast.makeText(mainactivity, "go go go", Toast.LENGTH_SHORT).show();
-                tvname.setText("Name: $name")
-                tvphone.setText("Phone: $phoneNumber")
-                tvmail.setText("Email: $emailAddress")
-                Log.d("curs", "$name num$phoneNumber mail$emailAddress")
-            }
-            c.close()
-
-
-
-        }
-        else{
-
-
-        }
-    }
-*/
-
 
     private fun requestPermission() {
         if (ActivityCompat.shouldShowRequestPermissionRationale(
@@ -287,14 +246,12 @@ class ContactListViewActivity:AppCompatActivity() {
 
     private fun getAllContacts(): ArrayList<MobileContactList> {
 
-        var listData:ArrayList<MobileContactList>  = ArrayList()
+        var listData: ArrayList<MobileContactList> = ArrayList()
 
 
 
         return listData
     }
-
-
 
 
 }

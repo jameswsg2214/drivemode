@@ -8,12 +8,18 @@ class ContactListViewModel(private val contactListRepository: ContactListReposit
 
     val getAllData:LiveData<List<ContactEntity>> = contactListRepository.allContactList.asLiveData()
 
+    var progress = MutableLiveData<Int>()
+
+
     init {
+
+        progress.value=8
 
     }
 
     fun insertData(listData:List<ContactEntity>) = viewModelScope.launch {
         contactListRepository.insert(listData)
+
     }
 
 
